@@ -1,10 +1,6 @@
 import pandas as pd
 import numpy as np
-from template_utils import *
-import sys 
-import networkx as nx
 from collections import deque
-sys.setrecursionlimit(6000)
 
 def dfs(x, vis, g, comp):
     vis.add(x)
@@ -46,7 +42,7 @@ def bfs_dst(x, g):
     dst[x] = 0
     while q:
         x = q.popleft()
-        for adj in g[x]:
+        for adj in g.get(x, []):
             if adj not in dst:
                 dst[adj] = dst[x] + 1
                 q.append(adj)
@@ -54,7 +50,7 @@ def bfs_dst(x, g):
 
 def Q1(dataframe):
     g = {}
-    for _, (src, dst, _) in df.iterrows():
+    for _, (src, dst, _) in dataframe.iterrows():
         if src not in g:
             g[src] = set()
         if dst not in g:
@@ -82,32 +78,45 @@ def Q1(dataframe):
     return [connected, len(bridges), local]
 
 def Q2(dataframe):
-    df = dataframe[dataframe["Time"] >= dataframe["Time"].median()].drop_duplicates(["Src", "Dst"], keep="first").sort_values("Time")
-    timing = {}
+    dataframe = dataframe.sort_values("Time")
+    pre_df = dataframe[dataframe["Time"] < dataframe["Time"].median()]
+    df = dataframe[dataframe["Time"] >= dataframe["Time"].median()]
     g = {}
-    for _, (src, dst, time) in df.iterrows():
-        if (src, dst) not in timing and (dst, src) not in timing:
-            timing[(src, dst)] = time
-        # g[src].add(dst)
-        # g[dst].add(src)
-    triadic = 0
-    for (src, dst), _ in timing.items():
-        for u in g.get(src, []):
-            for v in g.get(dst, []):
-                if u == v:
-                    triadic += 0.5
+    done = set()
+    for _, (src, dst, _) in pre_df.iterrows():
         if src not in g:
             g[src] = set()
         if dst not in g:
             g[dst] = set()
         g[src].add(dst)
         g[dst].add(src)
-    return int(triadic)
+        done.add((dst, src))
+
+    timing = []
+    for _, (src, dst, time) in df.iterrows():
+        if (src, dst) not in done and (dst, src) not in done:
+            timing.append((src, dst,time))
+            done.add((src, dst))
+    triadic = 0
+    # current =  []
+    for src, dst, time in timing:
+        for u in g.get(src, []):
+            for v in g.get(dst, []):
+                if u == v:
+                    triadic += 1
+        if src not in g:
+            g[src] = set()
+        if dst not in g:
+            g[dst] = set()
+        g[src].add(dst)
+        g[dst].add(src)
+        # current.append((time, triadic))
+    return triadic
 
 def Q3(dataframe):
     g = {}
     g2 = {}
-    for _, (src, dst, _) in df.iterrows():
+    for _, (src, dst, _) in dataframe.iterrows():
         if src not in g:
             g[src] = set()
         if src not in g2:
@@ -126,7 +135,7 @@ def Q3(dataframe):
     comps.sort(key=lambda x: len(x))
     res = {}
     for node in comps[-1]:
-        dst = bfs_dst(node, g2)
+        dst = bfs_dst(node, g)
         for val in dst.values():
             res[val] = res.get(val, 0) + 1
     # print(len(g))
@@ -136,7 +145,7 @@ def Q4(dataframe):
     g = {}
     g_inv = {}
     nodes = set()
-    for _, (src, dst, _) in df.iterrows():
+    for _, (src, dst, _) in dataframe.iterrows():
         nodes.add(src)
         nodes.add(dst)
         if src not in g:
@@ -162,14 +171,12 @@ def Q4(dataframe):
         pr = pr_new
     idx, val = max(pr.items(), key=lambda x: x[1])
     tot = sum(map(abs,pr.values()))
-    # g = nx.from_pandas_edgelist(dataframe, "Src", "Dst", create_using=nx.DiGraph())
-    # print(max(nx.pagerank(g, alpha = 0.85, tol=1e-10).items(), key=lambda x:x[1]))
     return [idx, val/tot] # the id of the node with the highest pagerank score, the associated pagerank value.
     #Note that we consider that we reached convergence when the sum of the updates on all nodes after one iteration of PageRank is smaller than 10^(-10)
 
 def Q5(dataframe):
     g = {}
-    for _, (src, dst, _) in df.iterrows():
+    for _, (src, dst, _) in dataframe.iterrows():
         if src not in g:
             g[src] = set()
         if dst not in g:
@@ -195,7 +202,19 @@ def Q5(dataframe):
 
 df = pd.read_csv('CollegeMsg.csv')
 # print(Q1(df))
+import time
+print(Q1(df))
 print(Q2(df))
-print(Q3(df))
+# start = time.time()
+res = (Q3(df))
+# print("temps", time.time()-start)
+# import matplotlib.pyplot as plt
+# plt.plot( range(1, len(res)), res[1:])
+# plt.xlabel("Longueur du chemin")
+# plt.ylabel("Nombres de chemin")
+# plt.title("Graph de comparaison du nombre de chemin en fonction de la longueur longueurs de chemin")
+# plt.legend()
+# plt.show()
+print(res)
 print(Q4(df))
 print(Q5(df))
